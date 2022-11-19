@@ -28,6 +28,8 @@ pub struct Configuration{
     pub log_level: String,
     pub db_url: String,
     pub port: String,
+    pub username: String,
+    pub password: String,
     pub tables: HashMap<String, Table>,
 }
 

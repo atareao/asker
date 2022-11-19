@@ -1,7 +1,7 @@
 mod routes;
 mod config;
 
-use actix_web::{HttpServer, App, web::Data, middleware::Logger};
+use actix_web::{HttpServer, App, web::{self, Data}, middleware::Logger};
 use std::process;
 use tokio::fs;
 use sqlx::{query, sqlite::{SqlitePool, SqlitePoolOptions},
@@ -9,6 +9,7 @@ use sqlx::{query, sqlite::{SqlitePool, SqlitePoolOptions},
 use env_logger::Env;
 use log::{debug, error};
 use tera::Tera;
+use actix_web_httpauth::extractors::basic;
 use actix_files;
 
 use crate::config::Configuration;
@@ -60,12 +61,15 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .app_data(Data::new(pool.clone()))
+.app_data(Data::new(pool.clone()))
             .app_data(Data::new(conf.clone()))
             .app_data(Data::new(template.clone()))
             .service(routes::get_form)
             .service(routes::post_form)
-            .service(routes::get_results)
+            .service(
+                web::scope("results")
+                .app_data(basic::Config::default().realm("Restricted area"))
+                .service(routes::get_results))
             .service(actix_files::Files::new("/static", "./static"))
     })
     .workers(4)

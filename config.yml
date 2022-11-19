@@ -1,6 +1,8 @@
 log_level: debug
 db_url: sqlite:asker.db
 port: 8080
+username: username
+password: password
 tables:
   datos:
     template: index.html
