@@ -1,13 +1,59 @@
 use actix_web::{get, post, web, Result, error, Error, Responder};
 use actix_web_lab::respond::Html;
-use sqlx::{sqlite::SqlitePool, query};
+use sqlx::{sqlite::{SqlitePool, SqliteRow}, query, Row};
 use tera::Tera;
 use std::collections::HashMap;
-use crate::config::Configuration;
+use crate::config::{Configuration, Table};
 use log::{debug, error};
 
+fn from_row(table: &Table, rows: Vec<SqliteRow>) -> Vec<Vec<String>>{
+    let mut results: Vec<Vec<String>> = Vec::new();
+    for row in rows{
+        let mut map: Vec<String> = Vec::new();
+        for field in table.fields.as_slice(){
+            let name: &str = &field.name;
+            let value = match row.try_get(name){
+                Ok(val) => val,
+                Err(_) => "".to_string(),
+            };
+            map.push(value);
+        }
+        results.push(map);
+    }
+    results
+}
 
-
+#[get("/{table}/results")]
+pub async fn get_results(template: web::Data<Tera>, pool: web::Data<SqlitePool>,
+        configuration: web::Data<Configuration>, table_path: web::Path<String>) -> Result<impl Responder, Error>{
+    let table_name = table_path.into_inner();
+    let html = match configuration.get_table(&table_name){
+        Some(table) => {
+            let sql = format!("SELECT * from {} LIMIT {} OFFSET {}", &table_name, 10, 0);
+            let rows = query(&sql)
+                .fetch_all(pool.get_ref())
+                .await
+                .unwrap();
+            let data = from_row(table, rows);
+            //debug!("Resultados: {:?}", results);
+            let mut ctx = tera::Context::new();
+            ctx.insert("table", &table_name);
+            ctx.insert("title", &table.title);
+            ctx.insert("instructions", &table.instructions);
+            ctx.insert("fields", &table.fields);
+            ctx.insert("data", &data);
+            debug!("Template: {}", "results.html");
+            template.render("results.html", &ctx)
+                .map_err(|_| error::ErrorInternalServerError("Template error"))
+            
+        },
+        None => 
+            template.render("404.html", &tera::Context::new())
+                .map_err(|_| error::ErrorInternalServerError("Template error"))
+    }.unwrap();
+    debug!("Content: {}", &html);
+    Ok(Html(html))
+}
 
 #[get("/{table}")]
 pub async fn get_form(template: web::Data<Tera>, configuration: web::Data<Configuration>, table_path: web::Path<String>) -> Result<impl Responder, Error>{
@@ -56,7 +102,7 @@ pub async fn post_form(template: web::Data<Tera>, pool: web::Data<SqlitePool>,
                     error!("No pude: {}", e);
                     let context = tera::Context::new();
                     let template_file = if e.to_string().to_lowercase().contains("unique"){
-                        "200.html"
+                        "500.html"
                     }else{
                         "500.html"
                     };

@@ -65,6 +65,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(template.clone()))
             .service(routes::get_form)
             .service(routes::post_form)
+            .service(routes::get_results)
             .service(actix_files::Files::new("/static", "./static"))
     })
     .workers(4)
