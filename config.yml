@@ -1,0 +1,40 @@
+log_level: debug
+db_url: sqlite:asker.db
+port: 8080
+tables:
+  datos:
+    template: index.html
+    title: Este es un ejemplo
+    instructions: Estas son las instrucciones
+    fields:
+      - name: nombre
+        datatype: text
+        label: Nombre
+        placeholder: Tu nombre
+        required: true
+        unique: false
+      - name: apellido
+        datatype: text
+        label: Apellido
+        placeholder: Tu Apellido
+        required: true
+        unique: false
+      - name: email
+        datatype: email
+        label: Correo electrónico
+        placeholder: Tu correo electrónico
+        required: true
+        unique: true
+      - name: fecha
+        datatype: date
+        label: Fecha
+        placeholder: La fecha
+        required: false
+        unique: false
+      - name: hora
+        datatype: time
+        label: Hora
+        placeholder: La hora
+        required: false
+        unique: false
+
