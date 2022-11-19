@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>{{ title }}</title>
+        <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
+    </head>
+    <body>
+        <main class="container">
+            <h1>{{ title }}</h1>
+            {% if instructions != "" %}
+            <p>{{ instructions }}</p>
+            {% endif %}
+            <form action="/v1/{{ table }}" method="post">
+                <div>
+                    {% for field in fields %}
+                    <label for name="{{ field.name }}">
+                        {{ field.label }}
+                        <input type="{{ field.datatype }}" id="{{ field.name}}" name="{{ field.name }}" placeholder="{{ field.placeholder }}" {% if field.required %} required {% endif %}>
+                    </label>
+                    {% endfor %}
+                    <p><input type="submit" value="Submit"></p>
+                </div>
+            </form>
+        </main>
+    </body>
+</html>
