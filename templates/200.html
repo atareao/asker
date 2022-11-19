@@ -34,15 +34,8 @@
             /* https://www.flaticon.com/authors/icomoon */
             .box {
               max-width: 70%;
-              min-height: auto;
               margin: 0 auto;
-              padding: 1em 1em;
               text-align: center;
-              background: url("/static/flame.png")
-                  no-repeat top 10em center/128px 128px,
-                transparent
-                  url("/static/desktop-pc.png")
-                  no-repeat top 13em center/128px 128px;
             }
 
             h1,
@@ -60,10 +53,6 @@
               font-size: 3em;
             }
 
-            p:first-of-type {
-              margin-top: 4em;
-            }
-
             p > a {
               border-bottom: 1px dashed #216f79;
               font-style: italic;
@@ -78,14 +67,34 @@
             p img {
               vertical-align: bottom;
             }
+            img.emojione {
+              // Override any img styles to ensure Emojis are displayed inline
+              margin: 0px !important;
+              display: inline !important;
+
+              height: auto;
+              width: 50px;
+            }
+
+            p#wrong-test {
+              border-top: 1px solid black;
+              border-bottom: 1px solid black;
+              display: inline-block;
+            }
+
+            span.emoji {
+              font-size: 150px;
+              vertical-align: middle;
+              line-height: 2;
+            }
         </style>
     </head>
     <body>
         <div class="wrapper">
             <div class="box">
                 <h1>Ok</h1>
+                <p><span class="emoji">👌</span></p>
                 <p>Muchísimas gracias por tu ayuda</p>
-                <p>&#58;&#40;</p>
                 <p><a href="/">¡Intentémoslo otra vez!</a></p>
             </div>
         </div>
