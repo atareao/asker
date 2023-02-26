@@ -1,5 +1,6 @@
 mod routes;
 mod config;
+mod models;
 
 use actix_web::{HttpServer, App, web::{self, Data}, middleware::Logger};
 use std::process;
