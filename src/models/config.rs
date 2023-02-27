@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 use serde_yaml::Error;
-use super::models::table::Table;
+use super::table::Table;
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
