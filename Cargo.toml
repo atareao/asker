@@ -12,20 +12,18 @@ rust-version = "1.60"
 tokio = { version = "1.25", features = ["full"]}
 sqlx = { version = "0.6", features = ["runtime-actix-rustls", "sqlite", "macros", "offline", "chrono"]}
 
-axum = { version = "0.6" , features = ["multipart"] }
-
-# Axum builds on the types in Tower
-tower = "0.4"
-tower-http = { version = "0.4", features = [ "trace", "fs" ] }
+# framework web
+actix-web = "4.5.1"
 
 # Logs
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Templates
-tera = "1.17"
+minijinja = { version = "1.0.12", features = ["loader"] }
 
 # Utility
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 serde_yaml = "0.9"
+chrono = { version = "0.4.35", features = ["serde"] }

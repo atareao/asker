@@ -2,7 +2,13 @@ mod routes;
 mod models;
 mod http;
 
-use actix_web::{HttpServer, App, web::{self, Data}, middleware::Logger};
+use actix_web::{
+    HttpServer,
+    App,
+    web::{self, Data},
+    middleware::Logger
+};
+
 use std::process;
 use tokio::fs;
 use sqlx::{query, sqlite::{SqlitePool, SqlitePoolOptions},
