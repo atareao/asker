@@ -1,56 +1,162 @@
 use serde::{Serialize, Deserialize};
-use super::field::Field;
+use sqlx::{
+    sqlite::{
+        SqlitePool,
+        SqliteRow
+    },
+    query,
+    Row
+};
+use chrono::{
+    DateTime,
+    Utc
+};
+use tracing::{
+    info,
+    debug
+};
+
+// my own uses
+use super::{
+    Error,
+    Field,
+    default_datetime
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Form{
-    pub template: String,
+    pub id: i64,
+    pub name: String,
     pub title: String,
     pub instructions: String,
-    pub fields: Vec<Field>,
+    #[serde(default = "default_datetime")]
+    created_at: DateTime<Utc>,
+    #[serde(default = "default_datetime")]
+    updated_at: DateTime<Utc>,
 }
 
+
 impl Form {
-    pub fn create(&self, name: &str) -> String{
-        let fields = self.get_fields();
-        format!("CREATE TABLE IF NOT EXISTS {} ({});", name, fields)
-    }
-
-    pub fn insert(&self, name: &str) -> String{
-        let fields: Vec<String> = self.fields.iter().map(|item| item.name.to_string()).collect();
-        let mut params = Vec::new();
-        for i in 1..fields.len() + 1{
-            params.push(format!("${}", i))
+    fn from_row(row: SqliteRow) -> Self{
+        info!("from_row");
+        Self{
+            id: row.get("id"),
+            name: row.get("name"),
+            title: row.get("title"),
+            instructions: row.get("instructions"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
         }
-        format!("INSERT INTO {} ({}) VALUES ({});", name, fields.join(","),
-            params.join(","))
     }
-
-    fn get_fields(&self) -> String{
-        let mut sb = String::new();
-        for field in self.fields.as_slice(){
-            sb.push_str(&Self::get_field(&field))
+    pub fn new(name: String, title: String, instructions: String) -> Self{
+        let created_at = Utc::now();
+        let updated_at = created_at.clone();
+        Self{
+            id: -1,
+            name,
+            title,
+            instructions,
+            created_at,
+            updated_at,
         }
-        sb = if sb.ends_with(","){
-            sb[0..sb.len() - 1].to_string()
+    }
+    pub async fn save(&mut self, pool: &SqlitePool) -> Result<Self, Error>{
+        info!("save");
+        if self.id > -1 {
+            let saved = Self::update(pool, self).await?;
+            self.updated_at = saved.updated_at;
+            Ok(saved)
         }else{
-            sb
-        };
-        sb
+            let saved = Self::create(pool, self).await?;
+            self.id = saved.id;
+            Ok(saved)
+        }
     }
 
-    fn get_field(field: &Field) -> String {
-        let nullable = if field.required{
-            " NOT NULL"
-        }else{
-            ""
-        };
-        let unique = if field.unique {
-            " UNIQUE,"
-        }else{
-            ","
-        };
-        format!("\n{} {}{}{}", field.name, Self::to_sqlite(&field.datatype),
-            nullable, unique)
+    pub async fn delete(&mut self, pool: &SqlitePool) -> Result<Self, Error>{
+        info!("remove");
+        Self::remove(pool, self.id).await
+    }
+
+    pub async fn get_fields(self, pool: &SqlitePool) -> Result<Vec<Field>, Error>{
+        info!("get_fields");
+        Field::read_by_form_id(pool, self.id).await
+    }
+
+    pub async fn create(pool: &SqlitePool, form: &Self) -> Result<Self, Error>{
+        info!("create");
+        let sql = "INSERT INTO forms (name, title, instructions,
+                   created_at, updated_at) VALUES ($1, $2, $3, $4, $5)
+                   RETURNING *";
+        query(sql)
+            .bind(&form.name)
+            .bind(&form.title)
+            .bind(&form.instructions)
+            .bind(&form.created_at)
+            .bind(&form.updated_at)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn read(pool: &SqlitePool, id: i64) -> Result<Self, Error>{
+        info!("read");
+        let sql = "SELECT * FROM forms WHERE id = $1";
+        query(sql)
+            .bind(id)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn read_by_name(pool: &SqlitePool, name: &str) -> Result<Self, Error>{
+        info!("read_by_name");
+        let sql = "SELECT * FROM forms WHERE name = $1";
+        query(sql)
+            .bind(name)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn read_all(pool: &SqlitePool) -> Result<Vec<Self>, Error>{
+        info!("read_all");
+        let sql = "SELECT * FROM forms";
+        query(sql)
+            .map(Self::from_row)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.into())
+    }
+
+    pub async fn update(pool: &SqlitePool, form: &Self) -> Result<Self, Error>{
+        info!("update");
+        let updated_at = Utc::now();
+        let sql = "UPDATE forms SET title = $1, instructions = $2,
+                   updated_at = $3 WHERE id = $4 RETURNING *";
+        query(sql)
+            .bind(&form.title)
+            .bind(&form.instructions)
+            .bind(updated_at)
+            .bind(form.id)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+        .map_err(|e| e.into())
+    }
+
+    pub async fn remove(pool: &SqlitePool, id: i64) -> Result<Self, Error>{
+        info!("remove");
+        let sql = "DELETE forms WHERE id = $1 RETURNING *";
+        query(sql)
+            .bind(id)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+        .map_err(|e| e.into())
     }
 
     fn to_sqlite(datatype: &str) -> &str{
@@ -72,7 +178,6 @@ impl Form {
             "week"           => "INTEGER",
             _                => "TEXT",
         }
-
     }
 
     pub fn drop(&self, name: &str) -> String{

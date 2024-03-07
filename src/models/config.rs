@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 use serde_yaml::Error;
-use super::table::Table;
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -12,7 +11,6 @@ pub struct Configuration{
     pub port: String,
     pub username: String,
     pub password: String,
-    pub tables: HashMap<String, Table>,
 }
 
 impl Configuration {
@@ -30,10 +28,6 @@ impl Configuration {
 
     pub fn get_port(&self) -> &str{
         &self.port
-    }
-
-    pub fn get_table(&self, table: &str) -> Option<&Table>{
-        self.tables.get(&table.to_string())
     }
 }
 
