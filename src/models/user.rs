@@ -51,9 +51,8 @@ pub struct FilteredUser {
     pub updated_at: DateTime<Utc>,
 }
 
-fn async wrap(pool: &SqlitePool, word: &str) -> String{
-    let salt = Param::get("salt").await?;
-    let pepper = Param::get("pepper").await?;
+fn wrap(salt: &str, pepper: &str, word: &str) -> String{
+    info!("wrap");
     let composition = format!("{}{}{}", salt, word, pepper);
     format!("{:x}", md5::compute(composition))
 }
@@ -61,6 +60,7 @@ fn async wrap(pool: &SqlitePool, word: &str) -> String{
 
 impl User{
     fn from_row(row: SqliteRow) -> Self{
+        info!("from_row");
         Self{
             id: row.get("id"),
             name: row.get("name"),
@@ -72,12 +72,23 @@ impl User{
         }
     }
 
-    pub fn new(pool: &SqlitePool, name: String, password: String, role: Role, active: bool) -> Self{
-        let salt = Param::get_key("salt");
-        let hashed_password = "";
+    pub async fn set_password(&mut self, pool: &SqlitePool, password: String) -> Result<Self, Error>{
+        info!("set_password");
+        let salt = Param::get(pool, "salt").await?;
+        let pepper = Param::get(pool, "pepper").await?;
+        let hashed_password = wrap(&salt, &pepper, &password);
+        self.hashed_password = hashed_password;
+        self.save(pool).await
+    }
+
+    pub async fn new(pool: &SqlitePool, name: String, password: String, role: Role, active: bool) -> Result<Self, Error>{
+        info!("new");
+        let salt = Param::get(pool, "salt").await?;
+        let pepper = Param::get(pool, "pepper").await?;
+        let hashed_password = wrap(&salt, &pepper, &password);
         let created_at = Utc::now();
         let updated_at = created_at.clone();
-        Self{
+        let mut user = Self{
             id: -1,
             name,
             hashed_password,
@@ -85,7 +96,8 @@ impl User{
             active,
             created_at,
             updated_at,
-        }
+        };
+        user.save(&pool).await
     }
 
     pub async fn save(&mut self, pool: &SqlitePool) -> Result<Self, Error>{
@@ -108,11 +120,11 @@ impl User{
 
     pub async fn create(pool: &SqlitePool, user: &Self) -> Result<Self, Error>{
         info!("create");
-        let sql = "INSERT INTO users (name, password, role, active, created_at,
+        let sql = "INSERT INTO users (name, hashed_password, role, active, created_at,
                    updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *";
         query(sql)
             .bind(&user.name)
-            .bind(&user.password)
+            .bind(&user.hashed_password)
             .bind(&user.role)
             .bind(&user.active)
             .bind(&user.created_at)
@@ -122,6 +134,36 @@ impl User{
             .await
             .map_err(|e| e.into())
     }
+
+    pub async fn remove(pool: &SqlitePool, id: i64) -> Result<Self, Error>{
+        info!("delete");
+        let sql = "DELETE FROM users WHERE id = $1 RETURNING *";
+        query(sql)
+            .bind(id)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+        .map_err(|e| e.into())
+    }
+
+    pub async fn update(pool: &SqlitePool, user: &Self) -> Result<Self, Error>{
+        info!("update");
+        let updated_at = Utc::now();
+        let sql = "UPDATE users SET hashed_password = $1, role = $2,
+                   active = $3, updated_at = $4 WHERE id = $5 RETURNING *";
+        query(sql)
+            .bind(&user.hashed_password)
+            .bind(&user.role)
+            .bind(&user.active)
+            .bind(updated_at)
+            .bind(&user.id)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+        .map_err(|e| e.into())
+    }
+
+
 
     pub async fn get_by_name(pool: &SqlitePool, name: &str) -> Result<User, Error>{
         let sql = "SELECT * FROM users WHERE name = $1";

@@ -22,6 +22,7 @@ use actix_files;
 use crate::config::Configuration;
 
 
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let content = match fs::read_to_string("config.yml")

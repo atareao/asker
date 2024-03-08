@@ -11,10 +11,7 @@ use chrono::{
     DateTime,
     Utc
 };
-use tracing::{
-    info,
-    debug
-};
+use tracing::info;
 
 // my own uses
 use super::{
@@ -48,17 +45,18 @@ impl Form {
             updated_at: row.get("updated_at"),
         }
     }
-    pub fn new(name: String, title: String, instructions: String) -> Self{
+    pub async fn new(pool: &SqlitePool, name: String, title: String, instructions: String) -> Result<Self, Error>{
         let created_at = Utc::now();
         let updated_at = created_at.clone();
-        Self{
+        let mut form = Self{
             id: -1,
             name,
             title,
             instructions,
             created_at,
             updated_at,
-        }
+        };
+        form.save(pool).await
     }
     pub async fn save(&mut self, pool: &SqlitePool) -> Result<Self, Error>{
         info!("save");

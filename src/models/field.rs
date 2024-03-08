@@ -14,10 +14,7 @@ use chrono::{
     DateTime,
     Utc
 };
-use tracing::{
-    info,
-    debug
-};
+use tracing::info;
 
 // my own uses
 use super::{
@@ -62,11 +59,13 @@ impl Field{
         }
     }
 
-    pub fn new(form_id: i64, name: String, datatype: String, label: String,
-               placeholder: String, required: bool, unique: bool) -> Self{
+    pub async fn new(pool: &SqlitePool, form_id: i64, name: String,
+                     datatype: String, label: String, placeholder: String,
+                     required: bool, unique: bool) -> Result<Self, Error>{
+        info!("new");
         let created_at = Utc::now();
         let updated_at = created_at.clone();
-        Self{
+        let mut field = Self{
             id: -1,
             form_id,
             name,
@@ -77,28 +76,8 @@ impl Field{
             unique,
             created_at,
             updated_at,
-        }
-    }
-
-    pub async fn create(pool: &SqlitePool, field: &Self) -> Result<Self, Error>{
-        info!("create");
-        let sql = "INSERT INTO field.rss (form_id, name, datetype, label,
-                   placeholder, required, unique, created_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *";
-        query(sql)
-            .bind(&field.form_id)
-            .bind(&field.name)
-            .bind(&field.datatype)
-            .bind(&field.label)
-            .bind(&field.placeholder)
-            .bind(&field.required)
-            .bind(&field.unique)
-            .bind(&field.created_at)
-            .bind(&field.updated_at)
-            .map(Self::from_row)
-            .fetch_one(pool)
-            .await
-            .map_err(|e| e.into())
+        };
+        field.save(pool).await
     }
 
     pub async fn save(&mut self, pool: &SqlitePool) -> Result<Self, Error>{
@@ -119,9 +98,31 @@ impl Field{
         Self::remove(pool, self.id).await
     }
 
+
+    pub async fn create(pool: &SqlitePool, field: &Self) -> Result<Self, Error>{
+        info!("create");
+        let sql = "INSERT INTO fields (form_id, name, datetype, label,
+                   placeholder, required, unique, created_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *";
+        query(sql)
+            .bind(&field.form_id)
+            .bind(&field.name)
+            .bind(&field.datatype)
+            .bind(&field.label)
+            .bind(&field.placeholder)
+            .bind(&field.required)
+            .bind(&field.unique)
+            .bind(&field.created_at)
+            .bind(&field.updated_at)
+            .map(Self::from_row)
+            .fetch_one(pool)
+            .await
+            .map_err(|e| e.into())
+    }
+
     pub async fn read(pool: &SqlitePool, id: i64) -> Result<Self, Error>{
         info!("read");
-        let sql = "SELECT * FROM field.rss WHERE id = $1";
+        let sql = "SELECT * FROM fields WHERE id = $1";
         query(sql)
             .bind(id)
             .map(Self::from_row)
@@ -132,7 +133,7 @@ impl Field{
 
     pub async fn read_by_name(pool: &SqlitePool, name: &str) -> Result<Self, Error>{
         info!("read_by_name");
-        let sql = "SELECT * FROM field.rss WHERE name = $1";
+        let sql = "SELECT * FROM fields WHERE name = $1";
         query(sql)
             .bind(name)
             .map(Self::from_row)
@@ -143,7 +144,7 @@ impl Field{
 
     pub async fn read_by_form_id(pool: &SqlitePool, form_id: i64) -> Result<Vec<Self>, Error>{
         info!("read_by_form_id");
-        let sql = "SELECT * FROM field.rss WHERE form_id = $1";
+        let sql = "SELECT * FROM fields WHERE form_id = $1";
         query(sql)
             .bind(form_id)
             .map(Self::from_row)
@@ -154,7 +155,7 @@ impl Field{
 
     pub async fn read_all(pool: &SqlitePool) -> Result<Vec<Self>, Error>{
         info!("read_all");
-        let sql = "SELECT * FROM field.rss";
+        let sql = "SELECT * FROM fields";
         query(sql)
             .map(Self::from_row)
             .fetch_all(pool)
@@ -165,7 +166,7 @@ impl Field{
     pub async fn update(pool: &SqlitePool, field: &Self) -> Result<Self, Error>{
         info!("update");
         let updated_at = Utc::now();
-        let sql = "UPDATE field.rss SET datatype = $1, label = $2, placeholder = $3, required = $4, unique = $5, updated_at = $6 WHERE id = $7 RETURNING *";
+        let sql = "UPDATE fields SET datatype = $1, label = $2, placeholder = $3, required = $4, unique = $5, updated_at = $6 WHERE id = $7 RETURNING *";
         query(sql)
             .bind(&field.datatype)
             .bind(&field.label)
@@ -181,7 +182,7 @@ impl Field{
 
     pub async fn remove(pool: &SqlitePool, id: i64) -> Result<Self, Error>{
         info!("delete");
-        let sql = "DELETE field.rss WHERE id = $1 RETURNING *";
+        let sql = "DELETE FROM fields WHERE id = $1 RETURNING *";
         query(sql)
             .bind(id)
             .map(Self::from_row)
